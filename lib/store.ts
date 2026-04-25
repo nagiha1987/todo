@@ -1,28 +1,47 @@
-import fs from 'fs'
-import path from 'path'
 import { Todo } from './types'
 
-// Vercel's serverless filesystem is read-only except /tmp (ephemeral per instance)
-const dataFile = process.env.VERCEL
-  ? '/tmp/todos.json'
-  : path.join(process.cwd(), 'data', 'todos.json')
+const KV_KEY = 'todos'
 
-function ensureFile() {
-  const dir = path.dirname(dataFile)
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-  if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, '[]')
+export async function readTodos(): Promise<Todo[]> {
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    const { kv } = await import('@vercel/kv')
+    return (await kv.get<Todo[]>(KV_KEY)) ?? []
+  }
+  return readFromFile()
 }
 
-export function readTodos(): Todo[] {
+export async function writeTodos(todos: Todo[]): Promise<void> {
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    const { kv } = await import('@vercel/kv')
+    await kv.set(KV_KEY, todos)
+    return
+  }
+  writeToFile(todos)
+}
+
+function readFromFile(): Todo[] {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require('fs') as typeof import('fs')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const path = require('path') as typeof import('path')
+  const file = path.join(process.cwd(), 'data', 'todos.json')
   try {
-    ensureFile()
-    return JSON.parse(fs.readFileSync(dataFile, 'utf-8'))
+    const dir = path.dirname(file)
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+    if (!fs.existsSync(file)) fs.writeFileSync(file, '[]')
+    return JSON.parse(fs.readFileSync(file, 'utf-8'))
   } catch {
     return []
   }
 }
 
-export function writeTodos(todos: Todo[]): void {
-  ensureFile()
-  fs.writeFileSync(dataFile, JSON.stringify(todos, null, 2))
+function writeToFile(todos: Todo[]): void {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require('fs') as typeof import('fs')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const path = require('path') as typeof import('path')
+  const file = path.join(process.cwd(), 'data', 'todos.json')
+  const dir = path.dirname(file)
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(file, JSON.stringify(todos, null, 2))
 }
