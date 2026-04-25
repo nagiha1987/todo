@@ -3,17 +3,19 @@ import { Todo } from './types'
 const KV_KEY = 'todos'
 
 export async function readTodos(): Promise<Todo[]> {
-  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    const { kv } = await import('@vercel/kv')
-    return (await kv.get<Todo[]>(KV_KEY)) ?? []
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    const { Redis } = await import('@upstash/redis')
+    const redis = Redis.fromEnv()
+    return (await redis.get<Todo[]>(KV_KEY)) ?? []
   }
   return readFromFile()
 }
 
 export async function writeTodos(todos: Todo[]): Promise<void> {
-  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    const { kv } = await import('@vercel/kv')
-    await kv.set(KV_KEY, todos)
+  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    const { Redis } = await import('@upstash/redis')
+    const redis = Redis.fromEnv()
+    await redis.set(KV_KEY, todos)
     return
   }
   writeToFile(todos)
